@@ -9,6 +9,63 @@ from custom_flashatten import custom_tiled_attention_NO_ONLINE_softmax
 def flash_attention_backward(grad_output, query, key, value, K_tile_size, Q_tile_size=None, softmax_scale=None):
     # TODO: Need to implement the backward pass for the tiled attention
 
+    B, H, N_q, D_head = query.shape
+    _, _, N_kv, _ = key.shape
+    
+    if Q_tile_size is None:
+        Q_tile_size = K_tile_size
+    
+    if softmax_scale is None:
+        softmax_scale = 1.0 / math.sqrt(D_head)
+    
+    # 初始化梯度张量
+    grad_query = torch.zeros_like(query, dtype=torch.float32)
+    grad_key = torch.zeros_like(key, dtype=torch.float32)
+    grad_value = torch.zeros_like(value, dtype=torch.float32)
+    
+    # 计算分块索引
+    q_tile_indices = [(i * Q_tile_size, min((i + 1) * Q_tile_size, N_q)) 
+                      for i in range(math.ceil(N_q / Q_tile_size))]
+    
+    k_tile_indices = [(j * K_tile_size, min((j + 1) * K_tile_size, N_kv)) 
+                      for j in range(math.ceil(N_kv / K_tile_size))]
+    
+    # 前向传播计算注意力权重（用于反向传播）
+    _, attn_weights = custom_tiled_attention_NO_ONLINE_softmax(
+        query, key, value, K_tile_size, Q_tile_size, softmax_scale
+    )
+    
+    # 计算中间变量：注意力权重与输出梯度的乘积
+    temp = torch.matmul(attn_weights, grad_output)  # (B, H, N_kv, D_head)
+    
+    # 计算值的梯度
+    grad_value = torch.matmul(attn_weights.transpose(-2, -1), grad_output)  # (B, H, N_kv, D_head)
+    
+    # 遍历查询分块计算查询梯度
+    for i_q, (q_start, q_end) in enumerate(q_tile_indices):
+        Q_i = query[:, :, q_start:q_end, :]
+        current_N_q_tile = Q_i.shape[2]
+        
+        for j_k, (k_start, k_end) in enumerate(k_tile_indices):
+            K_j = key[:, :, k_start:k_end, :]
+            V_j = value[:, :, k_start:k_end, :]
+            current_N_kv_tile = K_j.shape[2]
+            
+            # 提取当前分块的注意力权重
+            attn_block = attn_weights[:, :, q_start:q_end, k_start:k_end]  # (B, H, Q_tile, K_tile)
+            
+            # 计算中间项用于查询和键的梯度
+            part1 = torch.matmul(grad_output[:, :, q_start:q_end, :], V_j.transpose(-2, -1))  # (B, H, Q_tile, K_tile)
+            part2 = torch.matmul(temp[:, :, k_start:k_end, :], Q_i.transpose(-2, -1))  # (B, H, K_tile, Q_tile)
+            
+            # 更新查询梯度
+            grad_query_part = softmax_scale * torch.matmul(part1, K_j)  # (B, H, Q_tile, D_head)
+            grad_query[:, :, q_start:q_end, :] += grad_query_part
+            
+            # 更新键梯度
+            grad_key_part = softmax_scale * torch.matmul(part2.transpose(-2, -1), Q_i)  # (B, H, K_tile, D_head)
+            grad_key[:, :, k_start:k_end, :] += grad_key_part
+    
     return grad_query, grad_key, grad_value
 
 

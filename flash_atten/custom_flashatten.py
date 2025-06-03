@@ -127,5 +127,58 @@ def custom_flash_attention_forward(query, key, value, Q_tile_size, K_tile_size, 
 
 def custom_tiled_attention_NO_ONLINE_softmax(query, key, value, K_tile_size, Q_tile_size=None, softmax_scale=None):
     # TODO: Need to implement the tiled attention with no online softmax
-
-    return output_full, None # Not returning detailed weights
+    
+    B, H, N_q, D_head = query.shape
+    _, _, N_kv, _ = key.shape
+    
+    if Q_tile_size is None:
+        Q_tile_size = K_tile_size
+    
+    if softmax_scale is None:
+        softmax_scale = 1.0 / math.sqrt(D_head)
+    
+    # 初始化输出张量
+    output = torch.zeros_like(query, dtype=torch.float32)
+    
+    # 计算查询和键/值的分块索引
+    q_tile_indices = [(i * Q_tile_size, min((i + 1) * Q_tile_size, N_q)) 
+                      for i in range(math.ceil(N_q / Q_tile_size))]
+    
+    k_tile_indices = [(j * K_tile_size, min((j + 1) * K_tile_size, N_kv)) 
+                      for j in range(math.ceil(N_kv / K_tile_size))]
+    
+    # 用于存储所有分块的注意力分数
+    all_scores = []
+    attn_weights = torch.zeros(B, H, N_q, N_kv, device=query.device, dtype=torch.float32)
+    
+    # 遍历查询分块
+    for i_q, (q_start, q_end) in enumerate(q_tile_indices):
+        Q_i = query[:, :, q_start:q_end, :]
+        current_N_q_tile = Q_i.shape[2]
+        
+        # 初始化当前查询分块的分数和输出
+        scores_block = torch.zeros(B, H, current_N_q_tile, N_kv, device=query.device, dtype=torch.float32)
+        
+        # 遍历键/值分块
+        for j_k, (k_start, k_end) in enumerate(k_tile_indices):
+            K_j = key[:, :, k_start:k_end, :]
+            V_j = value[:, :, k_start:k_end, :]
+            current_N_kv_tile = K_j.shape[2]
+            
+            # 计算分数块
+            S_ij_block = torch.matmul(Q_i, K_j.transpose(-2, -1))
+            scores_block[:, :, :, k_start:k_end] = S_ij_block * softmax_scale
+        
+        # 对当前查询分块应用Softmax
+        attn_block = F.softmax(scores_block, dim=-1)
+        
+        # 计算当前查询分块的输出
+        output_block = torch.matmul(attn_block, value)
+        
+        # 保存注意力权重
+        attn_weights[:, :, q_start:q_end, :] = attn_block
+        
+        # 更新全局输出
+        output[:, :, q_start:q_end, :] = output_block
+    
+    return output, attn_weights
