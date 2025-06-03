@@ -144,13 +144,89 @@ def solve_manual_gaussian_elimination(A_sparse, b_np):
              for large N (O(N^3) complexity, O(N^2) memory).
     """
     # TODO: Need to implement this
-    return x, solve_time, None # No iteration count for direct methods
+    start_time = time.time()
+    try:
+        n = len(b_np)
+        # 将稀疏矩阵转为密集矩阵（仅适用于小规模矩阵）
+        A_dense = A_sparse.toarray()
+        b = b_np.copy()
+        
+        # 增广矩阵 [A|b]
+        aug_matrix = np.hstack((A_dense, b.reshape(-1, 1)))
+        
+        # 正向消元
+        for i in range(n):
+            # 部分主元选择
+            pivot_row = i
+            for j in range(i+1, n):
+                if abs(aug_matrix[j, i]) > abs(aug_matrix[pivot_row, i]):
+                    pivot_row = j
+            
+            # 交换行
+            if pivot_row != i:
+                aug_matrix[i], aug_matrix[pivot_row] = aug_matrix[pivot_row].copy(), aug_matrix[i].copy()
+            
+            # 消元
+            pivot = aug_matrix[i, i]
+            if abs(pivot) < 1e-10:
+                raise ValueError("矩阵接近奇异，无法求解")
+            
+            for j in range(i+1, n):
+                factor = aug_matrix[j, i] / pivot
+                aug_matrix[j] -= factor * aug_matrix[i]
+        
+        # 回代求解
+        x = np.zeros(n)
+        x[n-1] = aug_matrix[n-1, n] / aug_matrix[n-1, n-1]
+        for i in range(n-2, -1, -1):
+            x[i] = (aug_matrix[i, n] - np.dot(aug_matrix[i, i+1:n], x[i+1:n])) / aug_matrix[i, i]
+        
+        solve_time = time.time() - start_time
+        return x, solve_time, None  # 直接法无迭代次数
+    except Exception as e:
+        solve_time = time.time() - start_time
+        print(f"手动高斯消去法失败: {e}")
+        return None, solve_time, None
 
 # Method 2: Gauss-Seidel Iteration
 def solve_gauss_seidel(A_sparse, b, max_iters=1000, tol=1e-8, verbose=True):
     # TODO: Need to implement this
-    return x, solve_time, iters
-
+    start_time = time.time()
+    try:
+        n = len(b)
+        x = np.zeros(n)  # 初始解
+        x_prev = x.copy()
+        iters = 0
+        
+        # 提取对角线元素和非对角元素（转换为CSC格式便于访问列）
+        A_csc = A_sparse.tocsc()
+        diag = A_csc.diagonal()
+        
+        for iters in range(max_iters):
+            for i in range(n):
+                # 计算非对角元素的贡献
+                row = A_csc.getrow(i).toarray()[0]
+                non_diag_sum = np.dot(row, x) - row[i] * x[i]
+                # 迭代更新
+                x[i] = (b[i] - non_diag_sum) / diag[i]
+            
+            # 检查收敛性
+            if iters > 0:
+                rel_error = np.linalg.norm(x - x_prev) / (np.linalg.norm(x) + 1e-10)
+                if rel_error < tol:
+                    break
+                x_prev = x.copy()
+        
+        solve_time = time.time() - start_time
+        
+        if verbose and iters >= max_iters:
+            print(f"高斯-赛德尔迭代达到最大迭代次数 {max_iters} 仍未收敛")
+        
+        return x, solve_time, iters
+    except Exception as e:
+        solve_time = time.time() - start_time
+        print(f"高斯-赛德尔迭代法失败: {e}")
+        return None, solve_time, max_iters
 
 # SciPy LU direct solver (for comparison with manual GE)
 def solve_scipy_splu(A_sparse, b):
