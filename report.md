@@ -1,9 +1,69 @@
 ## task1
 ### 1. 实验过程
+补全了`sovle_le.py`里的`solve_manual_gaussian_elimination`函数和`solve_gauss_seidel`函数，并且在`main.py`里补充了对比不同规模、不同稀疏和非严格对角占优矩阵的逻辑。
+
+- `solve_manual_gaussian_elimination`函数：
+  - 先把矩阵转化为稠密矩阵，然后采用高斯主元素消去法，首先选出每一列中绝对值最大的元素，然后通过行交换、把它交换到对角线上，得到 \(a_{ii}\)。然后按照公式 \(a_{jk}^{(new)}=a_{jk}-\frac{a_{ji}}{a_{ii}}a_{ik}\)，消去它下方的元素。经过正向消元后，增广矩阵 \([A|b]\) 变为上三角矩阵 \([U|c]\)，其中 U 是上三角矩阵，c 是新的常数向量。然后进行回代求解。首先，有 \(x_n\)：\(x_n=\frac{c_n}{u_{nn}}\)。然后，对于 \(i = n - 1, n - 2, \cdots, 1\)，求解 \(x_i\)：\(x_i=\frac{c_i-\sum_{j = i + 1}^{n}u_{ij}x_j}{u_{ii}}\)。
+  - 此外还添加了一些异常判断
+  - 核心代码如下：
+  ```python
+    # 正向消元
+    for i in range(n):
+        # 部分主元选择
+        pivot_row = i
+        for j in range(i + 1, n):
+            if abs(aug_matrix[j, i]) > abs(aug_matrix[pivot_row, i]):
+                pivot_row = j
+
+        # 交换行
+        if pivot_row != i:
+            aug_matrix[i], aug_matrix[pivot_row] = (
+                aug_matrix[pivot_row].copy(),
+                aug_matrix[i].copy(),
+            )
+
+        # 消元
+        pivot = aug_matrix[i, i]
+        if abs(pivot) < 1e-10:
+            raise ValueError("矩阵接近奇异，无法求解")
+
+        for j in range(i + 1, n):
+            factor = aug_matrix[j, i] / pivot
+            aug_matrix[j] -= factor * aug_matrix[i]
+
+    # 回代求解
+    x = np.zeros(n)
+    x[n - 1] = aug_matrix[n - 1, n] / aug_matrix[n - 1, n - 1]
+    for i in range(n - 2, -1, -1):
+        x[i] = (
+            aug_matrix[i, n] - np.dot(aug_matrix[i, i + 1 : n], x[i + 1 : n])
+        ) / aug_matrix[i, i]
+    ```
+
+- `solve_manual_gaussian_elimination`函数：
+  - 根据高斯 - 赛德尔迭代公式 \(x_i^{(k+1)} = \frac{b_i - \sum_{j=1}^{i-1} a_{ij}x_j^{(k+1)} - \sum_{j=i+1}^{n} a_{ij}x_j^{(k)}}{a_{ii}}\)，更新第 i 个未知数的值。
+  - 然后检查收敛性，计算相邻两次迭代结果的相对误差。当相对误差小于收敛阈值时结束迭代，未收敛时继续迭代。
+  - 核心代码如下：
+    ```python
+    for iters in range(max_iters):
+    for i in range(n):
+        # 计算非对角元素的贡献
+        row = A_csc.getrow(i).toarray()[0]
+        non_diag_sum = np.dot(row, x) - row[i] * x[i]
+        # 迭代更新
+        x[i] = (b[i] - non_diag_sum) / diag[i]
+
+    # 检查收敛性
+    if iters > 0:
+        rel_error = np.linalg.norm(x - x_prev) / (np.linalg.norm(x) + 1e-10)
+        if rel_error < tol:
+            break
+        x_prev = x.copy()
+    ```
 
 
 ### 2. 结果分析
-原始实验结果比较多，为了便于阅读，所以放到本部分的最后，以下只做概括分析
+原始实验结果比较多，为了便于阅读，所以放到实验报告的最后，以下只做概括分析
 #### 1. 严格对角占优时
 参数设置如下
 ```python
@@ -26,9 +86,24 @@
 `Gauss-Seidel`方法里，相对残差范数和解误差均为$10^{-10}$量级，精度逊于直接法。
 
 #### 2. 非严格对角占优时
-对角占优矩阵：在
+对角占优矩阵和非严格对角占优矩阵都是在第16次迭代后显示收敛。但是，非严格对角占优矩阵的相对残差范数、求解误差都略大。
+```text
+Gauss-Seidel (Diagonally Dominant):
+  Iterations: 16
+  Relative Residual Norm: 3.56e-12
+  Solution Error: 5.44e-12
 
-### 3. 完整实验结果
+Gauss-Seidel (Non-Diagonally Dominant):
+  Iterations: 16
+  Relative Residual Norm: 1.30e-11
+  Solution Error: 2.36e-11
+```
+
+## task2
+
+
+## 完整实验结果
+### task1
 #### 1. 严格对角占优时
 参数如下：
 ```python
@@ -165,13 +240,13 @@ Non-diagonally dominant matrix A ((500, 500)) generated with 12972 non-zero elem
 Gauss-Seidel Iteration:
 
 Gauss-Seidel (Non-Diagonally Dominant):
-  Iterations: 1.002453327178955
+  Iterations: 16
   Relative Residual Norm: 1.30e-11
   Solution Error: 2.36e-11
 
 === Comparison Summary ===
 Diagonally Dominant: Converged in 16 iterations
-Non-Diagonally Dominant: Converged in 1.002453327178955 iterations (or failed to converge)
+Non-Diagonally Dominant: Converged in 16 iterations (or failed to converge)
 
 Note: Diagonally dominant matrices guarantee convergence for Gauss-Seidel method,
 while non-diagonally dominant matrices may not converge or require more iterations.
