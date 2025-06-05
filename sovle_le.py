@@ -562,7 +562,7 @@ if __name__ == "__main__":
     
     # 高斯-赛德尔迭代法
     print("\nGauss-Seidel Iteration:")
-    x_gs_dd, iter_dd, residuals_dd = solve_gauss_seidel(
+    x_gs_dd, residuals_dd, iter_dd = solve_gauss_seidel(
         A_dd, b_dd, max_iters=MAX_ITERS, tol=1e-10, verbose=True
     )
     
