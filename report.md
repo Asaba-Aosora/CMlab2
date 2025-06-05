@@ -165,13 +165,13 @@ Non-diagonally dominant matrix A ((500, 500)) generated with 12972 non-zero elem
 Gauss-Seidel Iteration:
 
 Gauss-Seidel (Non-Diagonally Dominant):
-  Iterations: 16
+  Iterations: 1.002453327178955
   Relative Residual Norm: 1.30e-11
   Solution Error: 2.36e-11
 
 === Comparison Summary ===
 Diagonally Dominant: Converged in 16 iterations
-Non-Diagonally Dominant: Converged in 16 iterations (or failed to converge)
+Non-Diagonally Dominant: Converged in 1.002453327178955 iterations (or failed to converge)
 
 Note: Diagonally dominant matrices guarantee convergence for Gauss-Seidel method,
 while non-diagonally dominant matrices may not converge or require more iterations.
