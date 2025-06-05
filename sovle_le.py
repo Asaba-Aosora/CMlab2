@@ -322,17 +322,27 @@ def calculate_solution_error(x_computed, x_true):
 
 # 针对非严格对角矩阵, 绘制收敛取消对比图
 import matplotlib.pyplot as plt
+
 def plot_convergence(residuals_dd, residuals_ndd, n, density):
-    """绘制收敛曲线对比图"""
+    """修复版收敛曲线绘制函数"""
     plt.figure(figsize=(10, 6))
-    plt.semilogy(residuals_dd, 'b-', label='Diagonally Dominant')
-    plt.semilogy(residuals_ndd, 'r--', label='Non-Diagonally Dominant')
+    
+    # 绘制对数坐标下的收敛曲线
+    plt.semilogy(range(1, len(residuals_dd) + 1), residuals_dd, 'b-', label='Diagonally Dominant')
+    plt.semilogy(range(1, len(residuals_ndd) + 1), residuals_ndd, 'r--', label='Non-Diagonally Dominant')
+    
+    # 设置正确的坐标轴标签和标题
     plt.xlabel('Iterations')
     plt.ylabel('Relative Residual')
     plt.title(f'Convergence Comparison (N={n}, Density={density})')
-    plt.grid(True)
+    
+    # 添加网格和图例
+    plt.grid(True, which='both', linestyle='--', linewidth=0.5)
     plt.legend()
-    plt.savefig(f'convergence_N_{n}_density_{density}.png')
+    
+    # 优化图表显示
+    plt.tight_layout()
+    plt.savefig(f'fixed_convergence_N_{n}_density_{density}.png', dpi=300)
     plt.close()
 
 
