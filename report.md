@@ -134,3 +134,36 @@ Manual GE (Method 1)           | 8.4796     | 1.44e-15        | 2.61e-15        
 Gauss-Seidel (Method 2)        | 22.4206    | 5.02e-10        | 6.63e-10        | 13        
 ===============================================================================================
 ```
+
+#### 2. 非严格对角占优时
+```text
+
+=== Testing Matrix Properties (N=500, Density=0.05) ===
+
+--- Testing Diagonally Dominant Matrix ---
+Diagonally dominant matrix A ((500, 500)) generated with 12972 non-zero elements.
+
+Gauss-Seidel Iteration:
+
+Gauss-Seidel (Diagonally Dominant):
+  Iterations: 17
+  Relative Residual Norm: 3.56e-12
+  Solution Error: 5.44e-12
+
+--- Testing Non-Diagonally Dominant Matrix ---
+Non-diagonally dominant matrix A ((500, 500)) generated with 12972 non-zero elements.
+
+Gauss-Seidel Iteration:
+
+Gauss-Seidel (Non-Diagonally Dominant):
+  Iterations: 0.10935497283935547
+  Relative Residual Norm: 1.30e-11
+  Solution Error: 2.36e-11
+
+=== Comparison Summary ===
+Diagonally Dominant: Converged in 17 iterations
+Non-Diagonally Dominant: Converged in 0.10935497283935547 iterations (or failed to converge)
+
+Note: Diagonally dominant matrices guarantee convergence for Gauss-Seidel method,
+while non-diagonally dominant matrices may not converge or require more iterations.
+```
