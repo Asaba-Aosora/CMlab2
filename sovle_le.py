@@ -320,6 +320,30 @@ def calculate_solution_error(x_computed, x_true):
         return np.nan if np.linalg.norm(x_computed - x_true) > 1e-9 else 0.0
     return np.linalg.norm(x_computed - x_true) / norm_x_true
 
+# 针对非严格对角矩阵, 绘制收敛取消对比图
+import matplotlib.pyplot as plt
+
+def plot_convergence(residuals_dd, residuals_ndd, n, density):
+    """修复版收敛曲线绘制函数"""
+    plt.figure(figsize=(10, 6))
+    
+    # 绘制对数坐标下的收敛曲线
+    plt.semilogy(range(1, len(residuals_dd) + 1), residuals_dd, 'b-', label='Diagonally Dominant')
+    plt.semilogy(range(1, len(residuals_ndd) + 1), residuals_ndd, 'r--', label='Non-Diagonally Dominant')
+    
+    # 设置正确的坐标轴标签和标题
+    plt.xlabel('Iterations')
+    plt.ylabel('Relative Residual')
+    plt.title(f'Convergence Comparison (N={n}, Density={density})')
+    
+    # 添加网格和图例
+    plt.grid(True, which='both', linestyle='--', linewidth=0.5)
+    plt.legend()
+    
+    # 优化图表显示
+    plt.tight_layout()
+    plt.savefig(f'fixed_convergence_N_{n}_density_{density}.png', dpi=300)
+    plt.close()
 
 
 # --- Main Execution and Comparison ---
@@ -569,6 +593,8 @@ if __name__ == "__main__":
     print(f"  Relative Residual Norm: {rel_res_gs_ndd:.2e}")
     print(f"  Solution Error: {err_gs_ndd:.2e}")
     
+    # 绘制收敛曲线对比图
+    plot_convergence(residuals_dd, residuals_ndd, N, DENSITY)
     
     # 对比结果
     print("\n=== Comparison Summary ===")
