@@ -566,11 +566,11 @@ if __name__ == "__main__":
     
     # 测试非对角占优矩阵
     print("\n--- Testing Non-Diagonally Dominant Matrix ---")
-    A_ndd, x_true_ndd, b_ndd = generate_sparse_non_diagonally_dominant_system(N, DENSITY, SEED)
+    A_ndd, b_ndd, x_true_ndd = generate_sparse_non_diagonally_dominant_system(N, DENSITY, SEED)
     
     # 高斯-赛德尔迭代法
     print("\nGauss-Seidel Iteration:")
-    x_gs_ndd, iter_ndd, residuals_ndd = solve_gauss_seidel(
+    x_gs_ndd, residuals_ndd, iter_ndd = solve_gauss_seidel(
         A_ndd, b_ndd, max_iters=MAX_ITERS, tol=1e-10, verbose=True
     )
     
