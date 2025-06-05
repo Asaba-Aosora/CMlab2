@@ -225,36 +225,47 @@ def solve_gauss_seidel(A_sparse, b, max_iters=1000, tol=1e-8, verbose=True):
     # TODO: Need to implement this
     start_time = time.time()
     try:
+        A = A_sparse.tocsr()  # 确保使用CSR格式
         n = len(b)
         x = np.zeros(n)  # 初始解
-        x_prev = x.copy()
+        x_prev = np.zeros(n)  # 前一次迭代的解
         iters = 0
-
-        # 提取对角线元素和非对角元素（转换为CSC格式便于访问列）
-        A_csc = A_sparse.tocsc()
-        diag = A_csc.diagonal()
-
+        
+        # 预计算对角线元素的倒数（提高效率）
+        diag = A.diagonal()
+        diag_inv = 1.0 / diag  # 注意：这里假设对角元素非零
+        
         for iters in range(max_iters):
+            # 复制当前解用于收敛性检查
+            x_prev[:] = x
+            
+            # 高斯-赛德尔迭代更新
             for i in range(n):
+                row_start = A.indptr[i]
+                row_end = A.indptr[i + 1]
+                
                 # 计算非对角元素的贡献
-                row = A_csc.getrow(i).toarray()[0]
-                non_diag_sum = np.dot(row, x) - row[i] * x[i]
-                # 迭代更新
-                x[i] = (b[i] - non_diag_sum) / diag[i]
-
+                sigma = 0.0
+                for j_idx in range(row_start, row_end):
+                    j = A.indices[j_idx]
+                    if j != i:
+                        sigma += A.data[j_idx] * x[j]
+                
+                # 更新x[i]
+                x[i] = (b[i] - sigma) * diag_inv[i]
+            
             # 检查收敛性
-            if iters > 0:
-                rel_error = np.linalg.norm(x - x_prev) / (np.linalg.norm(x) + 1e-10)
-                if rel_error < tol:
-                    break
-                x_prev = x.copy()
-
+            rel_error = np.linalg.norm(x - x_prev) / (np.linalg.norm(x) + 1e-10)
+            if rel_error < tol:
+                break
+        
         solve_time = time.time() - start_time
-
+        
         if verbose and iters >= max_iters:
-            print(f"高斯-赛德尔迭代达到最大迭代次数 {max_iters} 仍未收敛")
-
-        return x, solve_time, iters
+            print(f"高斯-赛德尔迭代达到最大迭代次数 {max_iters} 仍未收敛，相对误差: {rel_error:.6e}")
+        
+        return x, solve_time, iters + 1  # 返回实际迭代次数
+    
     except Exception as e:
         solve_time = time.time() - start_time
         print(f"高斯-赛德尔迭代法失败: {e}")
